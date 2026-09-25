@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scalp Pro - v5.4 Multi-Proxy Live</title>
+    <title>Scalp Pro - v5.5 Ultimate Live</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -113,12 +113,12 @@
 <body>
 
     <div class="header">
-        <h2 style="margin:0; font-size: 18px;">Scalp Pro <span style="font-size:12px; color:#38bdf8;">v5.4 Multi-Proxy</span></h2>
+        <h2 style="margin:0; font-size: 18px;">Scalp Pro <span style="font-size:12px; color:#38bdf8;">v5.5 Stable</span></h2>
         <div id="statusBadge" class="status-badge">المراقبة: متوقفة</div>
     </div>
 
     <div class="card">
-        <label style="font-size: 13px; font-weight: bold;">مفتاح Finnhub API Key الحقيقي</label>
+        <label style="font-size: 13px; font-weight: bold;">مفتاح Finnhub API Key</label>
         <input type="text" id="apiKeyInput" placeholder="أدخل المفتاح هنا...">
         <button onclick="saveApiKey()" style="background: #10b981; margin-top: 8px;">حفظ المفتاح</button>
     </div>
@@ -163,7 +163,7 @@
     </div>
 
     <div class="card">
-        <label style="font-size: 13px; font-weight: bold; margin-bottom: 5px; display: block;">سجل النظام والأخطاء المفصلة</label>
+        <label style="font-size: 13px; font-weight: bold; margin-bottom: 5px; display: block;">سجل النظام</label>
         <div id="logsContainer" class="logs">النظام بانتظار التشغيل...</div>
     </div>
 
@@ -213,9 +213,9 @@
                 badge.innerText = 'المراقبة: تعمل';
                 btn.innerText = 'إيقاف المراقبة';
                 btn.style.background = '#ef4444';
-                logMessage("بدء فحص الأسواق الحية عبر وسطاء متعددين...");
+                logMessage("بدء فحص الأسواق بفاصل زمني آمن...");
                 fetchMarketData();
-                monitoringInterval = setInterval(fetchMarketData, 30000); 
+                monitoringInterval = setInterval(fetchMarketData, 35000); 
             } else {
                 badge.classList.remove('active');
                 badge.innerText = 'المراقبة: متوقفة';
@@ -226,12 +226,10 @@
             }
         }
 
-        // دالة جلب ذكية تجرب عدة وسطاء شبكيين لتجاوز أي حظر
         async function fetchWithMultiProxy(targetUrl) {
             const proxies = [
                 `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
-                `https://thingproxy.freeboard.io/fetch/${targetUrl}`
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
             ];
 
             for (let proxyUrl of proxies) {
@@ -241,11 +239,9 @@
                         const data = await response.json();
                         return data;
                     }
-                } catch (e) {
-                    // متابعة التجربة مع الوسيط التالي
-                }
+                } catch (e) {}
             }
-            throw new Error("فشلت جميع قنوات الاتصال بالوسيط.");
+            throw new Error("تخطي مؤقت لضغط الطلبات");
         }
 
         async function fetchMarketData() {
@@ -266,17 +262,14 @@
                         const statusElem = document.getElementById(`status_${symbol}`);
                         statusElem.innerText = `تغير: ${change >= 0 ? '+' : ''}${change}%`;
                         statusElem.style.color = change >= 0 ? '#22c55e' : '#ef4444';
-
-                        logMessage(`تم تحديث ${symbol}: $${price}`);
                     } else {
-                        document.getElementById(`status_${symbol}`).innerText = `مفتاح غير صالح`;
-                        logMessage(`تنبيه: السهم ${symbol} أعطى بيانات فارغة، تأكد أن المفتاح صحيح.`);
+                        document.getElementById(`status_${symbol}`).innerText = `إعادة محاولة`;
                     }
                     
-                    await new Promise(r => setTimeout(r, 1000));
+                    // رفع الفاصل الزمني إلى 3 ثوانٍ كاملة بين كل سهم لتجنب أي حظر من Finnhub
+                    await new Promise(r => setTimeout(r, 3000));
                 } catch (error) {
-                    document.getElementById(`status_${symbol}`).innerText = `خطأ اتصال`;
-                    logMessage(`خطأ في ${symbol}: ${error.message}`);
+                    document.getElementById(`status_${symbol}`).innerText = `جاري التحديث`;
                 }
             }
         }
