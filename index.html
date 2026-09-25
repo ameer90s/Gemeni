@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scalp Pro - Finnhub Live</title>
+    <title>Scalp Pro - v5.3 Debug Live</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -20,7 +20,7 @@
             background: #1e293b;
             padding: 12px 20px;
             border-radius: 12px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
         .status-badge {
@@ -30,11 +30,8 @@
             border-radius: 20px;
             font-size: 13px;
             font-weight: bold;
-            transition: all 0.3s ease;
         }
-        .status-badge.active {
-            background: #22c55e;
-        }
+        .status-badge.active { background: #22c55e; }
         .card {
             background: #1e293b;
             border-radius: 12px;
@@ -61,11 +58,8 @@
             color: white;
             font-weight: bold;
             cursor: pointer;
-            transition: background 0.2s;
         }
-        button:hover {
-            background: #2563eb;
-        }
+        button:hover { background: #2563eb; }
         .stocks-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -78,24 +72,31 @@
             padding: 12px;
             text-align: center;
         }
-        .stock-symbol {
-            font-size: 18px;
-            font-weight: bold;
-            color: #38bdf8;
+        .stock-symbol { font-size: 18px; font-weight: bold; color: #38bdf8; }
+        .stock-price { font-size: 16px; margin: 6px 0; color: #e2e8f0; }
+        .stock-status { font-size: 11px; color: #94a3b8; background: #1e293b; padding: 3px 6px; border-radius: 6px; display: inline-block; }
+        
+        .signals-container { display: flex; flex-direction: column; gap: 10px; }
+        .signal-card {
+            background: linear-gradient(135deg, #065f46 0%, #064e3b 100%);
+            border: 1px solid #10b981;
+            border-radius: 10px;
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        .stock-price {
-            font-size: 16px;
-            margin: 6px 0;
-            color: #e2e8f0;
+        .signal-card.empty {
+            background: #0f172a;
+            border: 1px dashed #334155;
+            color: #64748b;
+            justify-content: center;
+            text-align: center;
         }
-        .stock-status {
-            font-size: 12px;
-            color: #94a3b8;
-            background: #1e293b;
-            padding: 3px 8px;
-            border-radius: 6px;
-            display: inline-block;
-        }
+        .signal-info h4 { margin: 0 0 5px 0; color: #34d399; font-size: 16px; }
+        .signal-info p { margin: 0; font-size: 13px; color: #cbd5e1; }
+        .signal-badge { background: #10b981; color: white; padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; }
+
         .logs {
             background: #0f172a;
             border: 1px solid #334155;
@@ -104,7 +105,7 @@
             height: 120px;
             overflow-y: auto;
             font-family: monospace;
-            font-size: 12px;
+            font-size: 11px;
             color: #38bdf8;
         }
     </style>
@@ -112,14 +113,21 @@
 <body>
 
     <div class="header">
-        <h2 style="margin:0; font-size: 20px;">Scalp Pro <span style="font-size:12px; color:#38bdf8;">v5.1 Live</span></h2>
-        <div id="statusBadge" class="status-badge">المراقبة التلقائية: متوقفة</div>
+        <h2 style="margin:0; font-size: 18px;">Scalp Pro <span style="font-size:12px; color:#38bdf8;">v5.3 Debug</span></h2>
+        <div id="statusBadge" class="status-badge">المراقبة: متوقفة</div>
     </div>
 
     <div class="card">
-        <label style="font-size: 14px; font-weight: bold;">إعدادات الربط المباشر (Finnhub API Key)</label>
-        <input type="text" id="apiKeyInput" placeholder="أدخل مفتاح Finnhub الحقيقي هنا (مثال: cxxxx...)">
-        <button onclick="saveApiKey()" style="background: #10b981; margin-top: 10px;">حفظ المفتاح</button>
+        <label style="font-size: 13px; font-weight: bold;">مفتاح Finnhub API Key الحقيقي</label>
+        <input type="text" id="apiKeyInput" placeholder="أدخل المفتاح هنا...">
+        <button onclick="saveApiKey()" style="background: #10b981; margin-top: 8px;">حفظ المفتاح</button>
+    </div>
+
+    <div class="card">
+        <label style="font-size: 14px; font-weight: bold; margin-bottom: 10px; display: block; color: #38bdf8;">🎯 كروت التوصيات النشطة</label>
+        <div id="signalsCardArea" class="signals-container">
+            <div class="signal-card empty">بانتظار رصد فرصة تداول مطابقة للشروط...</div>
+        </div>
     </div>
 
     <div class="card">
@@ -128,41 +136,42 @@
             <div class="stock-box">
                 <div class="stock-symbol">OKLO</div>
                 <div id="price_OKLO" class="stock-price">$ --</div>
-                <div class="stock-status" id="status_OKLO">بانتظار الاتصال</div>
+                <div class="stock-status" id="status_OKLO">جاهز</div>
             </div>
             <div class="stock-box">
                 <div class="stock-symbol">TSLA</div>
                 <div id="price_TSLA" class="stock-price">$ --</div>
-                <div class="stock-status" id="status_TSLA">بانتظار الاتصال</div>
+                <div class="stock-status" id="status_TSLA">جاهز</div>
             </div>
             <div class="stock-box">
                 <div class="stock-symbol">NVDA</div>
                 <div id="price_NVDA" class="stock-price">$ --</div>
-                <div class="stock-status" id="status_NVDA">بانتظار الاتصال</div>
+                <div class="stock-status" id="status_NVDA">جاهز</div>
             </div>
             <div class="stock-box">
                 <div class="stock-symbol">SMCI</div>
                 <div id="price_SMCI" class="stock-price">$ --</div>
-                <div class="stock-status" id="status_SMCI">بانتظار الاتصال</div>
+                <div class="stock-status" id="status_SMCI">جاهز</div>
             </div>
             <div class="stock-box" style="grid-column: span 2;">
                 <div class="stock-symbol">RGTI</div>
                 <div id="price_RGTI" class="stock-price">$ --</div>
-                <div class="stock-status" id="status_RGTI">بانتظار الاتصال</div>
+                <div class="stock-status" id="status_RGTI">جاهز</div>
             </div>
         </div>
-        <button onclick="toggleMonitoring()" id="toggleBtn" style="margin-top: 15px;">تشغيل المراقبة التلقائية والتنبيهات</button>
+        <button onclick="toggleMonitoring()" id="toggleBtn" style="margin-top: 15px;">تشغيل المراقبة والتنبيهات الآلية</button>
     </div>
 
     <div class="card">
-        <label style="font-size: 14px; font-weight: bold; margin-bottom: 5px; display: block;">سجل التنبيهات الحية</label>
-        <div id="logsContainer" class="logs">النظام جاهز. أدخل مفتاح الـ API الحقيقي واضغط تشغيل المراقبة...</div>
+        <label style="font-size: 13px; font-weight: bold; margin-bottom: 5px; display: block;">سجل النظام والأخطاء المفصلة</label>
+        <div id="logsContainer" class="logs">النظام بانتظار التشغيل...</div>
     </div>
 
     <script>
         const symbols = ['OKLO', 'TSLA', 'NVDA', 'SMCI', 'RGTI'];
         let isRunning = false;
         let monitoringInterval = null;
+        let activeSignals = {};
 
         window.onload = function() {
             const savedKey = localStorage.getItem('finnhub_api_key');
@@ -174,12 +183,10 @@
 
         function saveApiKey() {
             const key = document.getElementById('apiKeyInput').value.trim();
-            if (key && key.length > 5) {
+            if (key) {
                 localStorage.setItem('finnhub_api_key', key);
                 alert('تم حفظ المفتاح بنجاح!');
-                logMessage("تم تحديث وحفظ مفتاح Finnhub API.");
-            } else {
-                alert('الرجاء إدخال مفتاح Finnhub صالح.');
+                logMessage("تم حفظ مفتاح Finnhub API.");
             }
         }
 
@@ -193,7 +200,7 @@
         function toggleMonitoring() {
             const key = document.getElementById('apiKeyInput').value.trim();
             if (!key) {
-                alert('الرجاء حفظ مفتاح Finnhub API أولاً!');
+                alert('الرجاء إدخال وحفظ مفتاح الـ API أولاً!');
                 return;
             }
 
@@ -203,16 +210,16 @@
 
             if (isRunning) {
                 badge.classList.add('active');
-                badge.innerText = 'المراقبة التلقائية: تعمل مباشرة';
+                badge.innerText = 'المراقبة: تعمل';
                 btn.innerText = 'إيقاف المراقبة';
                 btn.style.background = '#ef4444';
-                logMessage("بدء الاتصال الحي بأسواق المال...");
+                logMessage("بدء فحص الأسواق الحية...");
                 fetchMarketData();
-                monitoringInterval = setInterval(fetchMarketData, 30000); // تحديث كل 30 ثانية
+                monitoringInterval = setInterval(fetchMarketData, 30000); 
             } else {
                 badge.classList.remove('active');
-                badge.innerText = 'المراقبة التلقائية: متوقفة';
-                btn.innerText = 'تشغيل المراقبة التلقائية والتنبيهات';
+                badge.innerText = 'المراقبة: متوقفة';
+                btn.innerText = 'تشغيل المراقبة والتنبيهات الآلية';
                 btn.style.background = '#3b82f6';
                 clearInterval(monitoringInterval);
                 logMessage("تم إيقاف المراقبة.");
@@ -226,10 +233,14 @@
             for (let symbol of symbols) {
                 try {
                     const targetUrl = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${key}`;
-                    // استخدام وسيط AllOrigins لجلب البيانات بدون حظر
                     const proxyUrl = `https://api.allorigins.win/raw?url=` + encodeURIComponent(targetUrl);
 
                     const response = await fetch(proxyUrl);
+                    
+                    if (!response.ok) {
+                        throw new Error(`خطأ شبكة HTTP: ${response.status}`);
+                    }
+
                     const data = await response.json();
 
                     if (data && data.c !== undefined && data.c !== 0) {
@@ -242,16 +253,16 @@
                         statusElem.innerText = `تغير: ${change >= 0 ? '+' : ''}${change}%`;
                         statusElem.style.color = change >= 0 ? '#22c55e' : '#ef4444';
 
-                        if (Math.abs(change) > 1.5) {
-                            logMessage(` تنبيه (${symbol}): رصد حركة قوية بنسبة ${change}% عند السعر $${price}`);
-                        }
+                        logMessage(`تم تحديث ${symbol}: $${price}`);
                     } else {
-                        document.getElementById(`status_${symbol}`).innerText = `مفتاح خاطئ أو غير فعال`;
-                        logMessage(`خطأ: لم يتم جلب بيانات ${symbol}، تأكد أن المفتاح صحيح وغير منتهي.`);
+                        document.getElementById(`status_${symbol}`).innerText = `مفتاح غير صالح`;
+                        logMessage(`تنبيه: السهم ${symbol} أعطى بيانات فارغة، تأكد أن مفتاح Finnhub صحيح.`);
                     }
+                    
+                    await new Promise(r => setTimeout(r, 1000));
                 } catch (error) {
-                    console.error(`Error fetching ${symbol}:`, error);
-                    document.getElementById(`status_${symbol}`).innerText = `خطأ في الاتصال`;
+                    document.getElementById(`status_${symbol}`).innerText = `خطأ اتصال`;
+                    logMessage(`خطأ في ${symbol}: ${error.message}`);
                 }
             }
         }
