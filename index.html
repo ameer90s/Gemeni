@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scalp Pro - Finnhub Live</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            padding: 15px;
+            direction: rtl;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1e293b;
+            padding: 12px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .status-badge {
+            background: #ef4444;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .status-badge.active {
+            background: #22c55e;
+        }
+        .card {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        input, button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 8px;
+            border-radius: 8px;
+            border: none;
+            font-size: 15px;
+            box-sizing: border-box;
+        }
+        input {
+            background: #0f172a;
+            color: white;
+            border: 1px solid #334155;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        .stocks-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .stock-box {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+        }
+        .stock-symbol {
+            font-size: 18px;
+            font-weight: bold;
+            color: #38bdf8;
+        }
+        .stock-price {
+            font-size: 16px;
+            margin: 6px 0;
+            color: #e2e8f0;
+        }
+        .stock-status {
+            font-size: 12px;
+            color: #94a3b8;
+            background: #1e293b;
+            padding: 3px 8px;
+            border-radius: 6px;
+            display: inline-block;
+        }
+        .logs {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 10px;
+            height: 120px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h2 style="margin:0; font-size: 20px;">Scalp Pro <span style="font-size:12px; color:#38bdf8;">v5.1 Live</span></h2>
+        <div id="statusBadge" class="status-badge">المراقبة التلقائية: متوقفة</div>
+    </div>
+
+    <div class="card">
+        <label style="font-size: 14px; font-weight: bold;">إعدادات الربط المباشر (Finnhub API Key)</label>
+        <input type="text" id="apiKeyInput" placeholder="أدخل مفتاح Finnhub الحقيقي هنا (مثال: cxxxx...)">
+        <button onclick="saveApiKey()" style="background: #10b981; margin-top: 10px;">حفظ المفتاح</button>
+    </div>
+
+    <div class="card">
+        <label style="font-size: 14px; font-weight: bold; margin-bottom: 10px; display: block;">قائمة الأسهم الحية (15m)</label>
+        <div class="stocks-grid">
+            <div class="stock-box">
+                <div class="stock-symbol">OKLO</div>
+                <div id="price_OKLO" class="stock-price">$ --</div>
+                <div class="stock-status" id="status_OKLO">بانتظار الاتصال</div>
+            </div>
+            <div class="stock-box">
+                <div class="stock-symbol">TSLA</div>
+                <div id="price_TSLA" class="stock-price">$ --</div>
+                <div class="stock-status" id="status_TSLA">بانتظار الاتصال</div>
+            </div>
+            <div class="stock-box">
+                <div class="stock-symbol">NVDA</div>
+                <div id="price_NVDA" class="stock-price">$ --</div>
+                <div class="stock-status" id="status_NVDA">بانتظار الاتصال</div>
+            </div>
+            <div class="stock-box">
+                <div class="stock-symbol">SMCI</div>
+                <div id="price_SMCI" class="stock-price">$ --</div>
+                <div class="stock-status" id="status_SMCI">بانتظار الاتصال</div>
+            </div>
+            <div class="stock-box" style="grid-column: span 2;">
+                <div class="stock-symbol">RGTI</div>
+                <div id="price_RGTI" class="stock-price">$ --</div>
+                <div class="stock-status" id="status_RGTI">بانتظار الاتصال</div>
+            </div>
+        </div>
+        <button onclick="toggleMonitoring()" id="toggleBtn" style="margin-top: 15px;">تشغيل المراقبة التلقائية والتنبيهات</button>
+    </div>
+
+    <div class="card">
+        <label style="font-size: 14px; font-weight: bold; margin-bottom: 5px; display: block;">سجل التنبيهات الحية</label>
+        <div id="logsContainer" class="logs">النظام جاهز. أدخل مفتاح الـ API الحقيقي واضغط تشغيل المراقبة...</div>
+    </div>
+
+    <script>
+        const symbols = ['OKLO', 'TSLA', 'NVDA', 'SMCI', 'RGTI'];
+        let isRunning = false;
+        let monitoringInterval = null;
+
+        window.onload = function() {
+            const savedKey = localStorage.getItem('finnhub_api_key');
+            if (savedKey) {
+                document.getElementById('apiKeyInput').value = savedKey;
+                logMessage("تم استرجاع مفتاح الـ API المحفوظ.");
+            }
+        };
+
+        function saveApiKey() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            if (key && key.length > 5) {
+                localStorage.setItem('finnhub_api_key', key);
+                alert('تم حفظ المفتاح بنجاح!');
+                logMessage("تم تحديث وحفظ مفتاح Finnhub API.");
+            } else {
+                alert('الرجاء إدخال مفتاح Finnhub صالح.');
+            }
+        }
+
+        function logMessage(msg) {
+            const container = document.getElementById('logsContainer');
+            const time = new Date().toLocaleTimeString();
+            container.innerHTML += `<br>[${time}] ${msg}`;
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function toggleMonitoring() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            if (!key) {
+                alert('الرجاء حفظ مفتاح Finnhub API أولاً!');
+                return;
+            }
+
+            isRunning = !isRunning;
+            const badge = document.getElementById('statusBadge');
+            const btn = document.getElementById('toggleBtn');
+
+            if (isRunning) {
+                badge.classList.add('active');
+                badge.innerText = 'المراقبة التلقائية: تعمل مباشرة';
+                btn.innerText = 'إيقاف المراقبة';
+                btn.style.background = '#ef4444';
+                logMessage("بدء الاتصال الحي بأسواق المال...");
+                fetchMarketData();
+                monitoringInterval = setInterval(fetchMarketData, 30000); // تحديث كل 30 ثانية
+            } else {
+                badge.classList.remove('active');
+                badge.innerText = 'المراقبة التلقائية: متوقفة';
+                btn.innerText = 'تشغيل المراقبة التلقائية والتنبيهات';
+                btn.style.background = '#3b82f6';
+                clearInterval(monitoringInterval);
+                logMessage("تم إيقاف المراقبة.");
+            }
+        }
+
+        async function fetchMarketData() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            if (!key) return;
+
+            for (let symbol of symbols) {
+                try {
+                    const targetUrl = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${key}`;
+                    // استخدام وسيط AllOrigins لجلب البيانات بدون حظر
+                    const proxyUrl = `https://api.allorigins.win/raw?url=` + encodeURIComponent(targetUrl);
+
+                    const response = await fetch(proxyUrl);
+                    const data = await response.json();
+
+                    if (data && data.c !== undefined && data.c !== 0) {
+                        const price = data.c;
+                        const prevClose = data.pc;
+                        const change = ((price - prevClose) / prevClose * 100).toFixed(2);
+                        
+                        document.getElementById(`price_${symbol}`).innerText = `$${price.toFixed(2)}`;
+                        const statusElem = document.getElementById(`status_${symbol}`);
+                        statusElem.innerText = `تغير: ${change >= 0 ? '+' : ''}${change}%`;
+                        statusElem.style.color = change >= 0 ? '#22c55e' : '#ef4444';
+
+                        if (Math.abs(change) > 1.5) {
+                            logMessage(` تنبيه (${symbol}): رصد حركة قوية بنسبة ${change}% عند السعر $${price}`);
+                        }
+                    } else {
+                        document.getElementById(`status_${symbol}`).innerText = `مفتاح خاطئ أو غير فعال`;
+                        logMessage(`خطأ: لم يتم جلب بيانات ${symbol}، تأكد أن المفتاح صحيح وغير منتهي.`);
+                    }
+                } catch (error) {
+                    console.error(`Error fetching ${symbol}:`, error);
+                    document.getElementById(`status_${symbol}`).innerText = `خطأ في الاتصال`;
+                }
+            }
+        }
+    </script>
+</body>
+</html>
