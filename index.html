@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scalp Pro - v5.3 Debug Live</title>
+    <title>Scalp Pro - v5.4 Multi-Proxy Live</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -113,7 +113,7 @@
 <body>
 
     <div class="header">
-        <h2 style="margin:0; font-size: 18px;">Scalp Pro <span style="font-size:12px; color:#38bdf8;">v5.3 Debug</span></h2>
+        <h2 style="margin:0; font-size: 18px;">Scalp Pro <span style="font-size:12px; color:#38bdf8;">v5.4 Multi-Proxy</span></h2>
         <div id="statusBadge" class="status-badge">المراقبة: متوقفة</div>
     </div>
 
@@ -213,7 +213,7 @@
                 badge.innerText = 'المراقبة: تعمل';
                 btn.innerText = 'إيقاف المراقبة';
                 btn.style.background = '#ef4444';
-                logMessage("بدء فحص الأسواق الحية...");
+                logMessage("بدء فحص الأسواق الحية عبر وسطاء متعددين...");
                 fetchMarketData();
                 monitoringInterval = setInterval(fetchMarketData, 30000); 
             } else {
@@ -226,6 +226,28 @@
             }
         }
 
+        // دالة جلب ذكية تجرب عدة وسطاء شبكيين لتجاوز أي حظر
+        async function fetchWithMultiProxy(targetUrl) {
+            const proxies = [
+                `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+                `https://thingproxy.freeboard.io/fetch/${targetUrl}`
+            ];
+
+            for (let proxyUrl of proxies) {
+                try {
+                    const response = await fetch(proxyUrl);
+                    if (response.ok) {
+                        const data = await response.json();
+                        return data;
+                    }
+                } catch (e) {
+                    // متابعة التجربة مع الوسيط التالي
+                }
+            }
+            throw new Error("فشلت جميع قنوات الاتصال بالوسيط.");
+        }
+
         async function fetchMarketData() {
             const key = document.getElementById('apiKeyInput').value.trim();
             if (!key) return;
@@ -233,15 +255,7 @@
             for (let symbol of symbols) {
                 try {
                     const targetUrl = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${key}`;
-                    const proxyUrl = `https://api.allorigins.win/raw?url=` + encodeURIComponent(targetUrl);
-
-                    const response = await fetch(proxyUrl);
-                    
-                    if (!response.ok) {
-                        throw new Error(`خطأ شبكة HTTP: ${response.status}`);
-                    }
-
-                    const data = await response.json();
+                    const data = await fetchWithMultiProxy(targetUrl);
 
                     if (data && data.c !== undefined && data.c !== 0) {
                         const price = data.c;
@@ -256,7 +270,7 @@
                         logMessage(`تم تحديث ${symbol}: $${price}`);
                     } else {
                         document.getElementById(`status_${symbol}`).innerText = `مفتاح غير صالح`;
-                        logMessage(`تنبيه: السهم ${symbol} أعطى بيانات فارغة، تأكد أن مفتاح Finnhub صحيح.`);
+                        logMessage(`تنبيه: السهم ${symbol} أعطى بيانات فارغة، تأكد أن المفتاح صحيح.`);
                     }
                     
                     await new Promise(r => setTimeout(r, 1000));
