@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scalp Pro - v5.6 Final Stable</title>
+    <title>Scalp Pro - v6.0 Original Strategy</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -113,7 +113,7 @@
 <body>
 
     <div class="header">
-        <h2 style="margin:0; font-size: 18px;">Scalp Pro <span style="font-size:12px; color:#38bdf8;">v5.6 Final</span></h2>
+        <h2 style="margin:0; font-size: 18px;">Scalp Pro <span style="font-size:12px; color:#38bdf8;">v6.0 Strategy</span></h2>
         <div id="statusBadge" class="status-badge">المراقبة: متوقفة</div>
     </div>
 
@@ -123,10 +123,11 @@
         <button onclick="saveApiKey()" style="background: #10b981; margin-top: 8px;">حفظ المفتاح</button>
     </div>
 
+    <!-- كروت التوصيات المنفصلة -->
     <div class="card">
-        <label style="font-size: 14px; font-weight: bold; margin-bottom: 10px; display: block; color: #38bdf8;">🎯 كروت التوصيات النشطة</label>
+        <label style="font-size: 14px; font-weight: bold; margin-bottom: 10px; display: block; color: #38bdf8;">🎯 كروت التوصيات (EMA 9/21 + قاعدة < 2.5% + اختراق)</label>
         <div id="signalsCardArea" class="signals-container">
-            <div class="signal-card empty">بانتظار رصد فرصة تداول مطابقة للشروط...</div>
+            <div class="signal-card empty">بانتظار تكون الشروط الفنية الأصلية على فريم 15m...</div>
         </div>
     </div>
 
@@ -159,7 +160,7 @@
                 <div class="stock-status" id="status_RGTI">جاهز</div>
             </div>
         </div>
-        <button onclick="toggleMonitoring()" id="toggleBtn" style="margin-top: 15px;">تشغيل المراقبة والتنبيهات الآلية</button>
+        <button onclick="toggleMonitoring()" id="toggleBtn" style="margin-top: 15px;">تشغيل المراقبة والاستراتيجية الأصلية</button>
     </div>
 
     <div class="card">
@@ -170,7 +171,7 @@
     <script>
         const symbols = ['OKLO', 'TSLA', 'NVDA', 'SMCI', 'RGTI'];
         let isRunning = false;
-        let monitoringInterval = null;
+        let monitoringTimer = null;
         let activeSignals = {};
 
         window.onload = function() {
@@ -210,69 +211,147 @@
 
             if (isRunning) {
                 badge.classList.add('active');
-                badge.innerText = 'المراقبة: تعمل بانتظام';
+                badge.innerText = 'المراقبة: تعمل';
                 btn.innerText = 'إيقاف المراقبة';
                 btn.style.background = '#ef4444';
-                logMessage("بدء فحص الأسواق بنظام الجلب التتابعي الآمن...");
-                fetchAllStocksSequential();
-                monitoringInterval = setInterval(fetchAllStocksSequential, 30000); 
+                logMessage("بدء فحص الشموع واستراتيجية 15 دقيقة...");
+                runStrategyLoop();
             } else {
                 badge.classList.remove('active');
                 badge.innerText = 'المراقبة: متوقفة';
-                btn.innerText = 'تشغيل المراقبة والتنبيهات الآلية';
+                btn.innerText = 'تشغيل المراقبة والاستراتيجية الأصلية';
                 btn.style.background = '#3b82f6';
-                clearInterval(monitoringInterval);
+                clearTimeout(monitoringTimer);
                 logMessage("تم إيقاف المراقبة.");
             }
         }
 
-        async function fetchWithProxy(targetUrl) {
+        async classFetch(url) {
             const proxies = [
-                `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+                `https://corsproxy.io/?${encodeURIComponent(url)}`,
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
             ];
-
-            for (let proxyUrl of proxies) {
+            for (let p of proxies) {
                 try {
-                    const response = await fetch(proxyUrl);
-                    if (response.ok) {
-                        return await response.json();
-                    }
-                } catch (e) {}
+                    let res = await fetch(p);
+                    if (res.ok) return await res.json();
+                } catch(e) {}
             }
-            throw new Error("فشل الاتصال");
+            return null;
         }
 
-        // جلب الأسهم واحداً تلو الآخر بفاصل زمني نظيف لمنع الحظر
-        async function fetchAllStocksSequential() {
+        // حساب المتوسط الاسي EMA
+        function calculateEMA(data, period) {
+            let k = 2 / (period + 1);
+            let emaArray = [data[0]];
+            for (let i = 1; i < data.length; i++) {
+                emaArray.push((data[i] * k) + (emaArray[i - 1] * (1 - k)));
+            }
+            return emaArray;
+        }
+
+        async function runStrategyLoop() {
+            if (!isRunning) return;
             const key = document.getElementById('apiKeyInput').value.trim();
-            if (!key || !isRunning) return;
+            if (!key) return;
+
+            const now = Math.floor(Date.now() / 1000);
+            const fromTime = now - (86400); // بيانات يوم كامل لفريم 15د
 
             for (let symbol of symbols) {
                 if (!isRunning) break;
-                try {
-                    document.getElementById(`status_${symbol}`).innerText = `جاري التحديث...`;
-                    const targetUrl = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${key}`;
-                    const data = await fetchWithProxy(targetUrl);
 
-                    if (data && data.c !== undefined && data.c !== 0) {
-                        const price = data.c;
-                        const prevClose = data.pc;
-                        const change = ((price - prevClose) / prevClose * 100).toFixed(2);
-                        
-                        document.getElementById(`price_${symbol}`).innerText = `$${price.toFixed(2)}`;
-                        const statusElem = document.getElementById(`status_${symbol}`);
-                        statusElem.innerText = `تغير: ${change >= 0 ? '+' : ''}${change}%`;
-                        statusElem.style.color = change >= 0 ? '#22c55e' : '#ef4444';
-                    } else {
-                        document.getElementById(`status_${symbol}`).innerText = `انتظار السوق`;
-                    }
-                } catch (error) {
-                    document.getElementById(`status_${symbol}`).innerText = `إعادة محاولة`;
+                document.getElementById(`status_${symbol}`).innerText = `فحص 15m...`;
+
+                // 1. جلب الأسعار اللحظية لعرضها في المربعات
+                const quoteUrl = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${key}`;
+                const quoteData = await classFetch(quoteUrl);
+
+                if (quoteData && quoteData.c !== undefined && quoteData.c !== 0) {
+                    let price = quoteData.c;
+                    let prevClose = quoteData.pc;
+                    let change = prevClose ? ((price - prevClose) / prevClose * 100).toFixed(2) : '0.00';
+
+                    document.getElementById(`price_${symbol}`).innerText = `$${price.toFixed(2)}`;
+                    let statusElem = document.getElementById(`status_${symbol}`);
+                    statusElem.innerText = `تغير: ${change >= 0 ? '+' : ''}${change}%`;
+                    statusElem.style.color = change >= 0 ? '#22c55e' : '#ef4444';
                 }
-                // انتظار 4 ثوانٍ كاملة بين كل سهم لتجنب أي ضغط على الخادم
-                await new Promise(r => setTimeout(r, 4000));
+
+                // 2. جلب شموع فريم 15 دقيقة لتطبيق شروط الاستراتيجية الأصلية بدقة
+                const candleUrl = `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=15&from=${fromTime}&to=${now}&token=${key}`;
+                const candleData = await classFetch(candleUrl);
+
+                if (candleData && candleData.s === 'ok' && candleData.c && candleData.c.length > 25) {
+                    let closes = candleData.c;
+                    let highs = candleData.h;
+                    let lows = candleData.l;
+
+                    let ema9 = calculateEMA(closes, 9);
+                    let ema21 = calculateEMA(closes, 21);
+
+                    let lastIdx = closes.length - 1;
+                    let currentEMA9 = ema9[lastIdx];
+                    let currentEMA21 = ema21[lastIdx];
+                    let prevEMA9 = ema9[lastIdx - 1];
+                    let prevEMA21 = ema21[lastIdx - 1];
+
+                    // الشرط الأول: تقاطع EMA 9 فوق EMA 21
+                    let isCrossover = (prevEMA9 <= prevEMA21 && currentEMA9 > currentEMA21);
+
+                    // الشرط الثاني: قاعدة ضيقة (تذبذب آخر الشموع أقل من 2.5%)
+                    let recentHighs = highs.slice(lastIdx - 5, lastIdx);
+                    let recentLows = lows.slice(lastIdx - 5, lastIdx);
+                    let maxH = Math.max(...recentHighs);
+                    let minL = Math.min(...recentLows);
+                    let baseVolatility = ((maxH - minL) / minL) * 100;
+                    let isTightBase = baseVolatility < 2.5;
+
+                    // الشرط الثالث: تأكيد الاختراق (إغلاق أعلى مقاومة القاعدة)
+                    let isBreakout = closes[lastIdx] > maxH;
+
+                    if (isCrossover && isTightBase && isBreakout) {
+                        activeSignals[symbol] = {
+                            price: closes[lastIdx],
+                            volatility: baseVolatility.toFixed(2),
+                            time: new Date().toLocaleTimeString()
+                        };
+                        renderSignals();
+                        logMessage(`🔥 تحققت شروط الاستراتيجية الأصلية على ${symbol} بنجاح!`);
+                    }
+                }
+
+                await new Promise(r => setTimeout(r, 4000)); // فاصل زمني آمن بين كل سهم
             }
+
+            if (isRunning) {
+                monitoringTimer = setTimeout(runStrategyLoop, 30000);
+            }
+        }
+
+        function renderSignals() {
+            let container = document.getElementById('signalsCardArea');
+            let keys = Object.keys(activeSignals);
+
+            if (keys.length === 0) {
+                container.innerHTML = `<div class="signal-card empty">بانتظار تكون الشروط الفنية الأصلية على فريم 15m...</div>`;
+                return;
+            }
+
+            container.innerHTML = '';
+            keys.forEach(sym => {
+                let sig = activeSignals[sym];
+                container.innerHTML += `
+                    <div class="signal-card">
+                        <div class="signal-info">
+                            <h4>🎯 توصية رسمية مطابقة: ${sym}</h4>
+                            <p>السعر: <b>$${sig.price}</b> | تذبذب القاعدة: ${sig.volatility}%</p>
+                            <p style="font-size: 11px; color: #cbd5e1; margin-top: 2px;">الشروط: تقاطع EMA 9/21 + قاعدة ضيقة + اختراق مؤكد (15m)</p>
+                        </div>
+                        <div class="signal-badge">دخول آمن</div>
+                    </div>
+                `;
+            });
         }
     </script>
 </body>
