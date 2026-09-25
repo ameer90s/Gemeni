@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scalp Pro - v5.5 Ultimate Live</title>
+    <title>Scalp Pro - v5.6 Final Stable</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -113,7 +113,7 @@
 <body>
 
     <div class="header">
-        <h2 style="margin:0; font-size: 18px;">Scalp Pro <span style="font-size:12px; color:#38bdf8;">v5.5 Stable</span></h2>
+        <h2 style="margin:0; font-size: 18px;">Scalp Pro <span style="font-size:12px; color:#38bdf8;">v5.6 Final</span></h2>
         <div id="statusBadge" class="status-badge">المراقبة: متوقفة</div>
     </div>
 
@@ -210,12 +210,12 @@
 
             if (isRunning) {
                 badge.classList.add('active');
-                badge.innerText = 'المراقبة: تعمل';
+                badge.innerText = 'المراقبة: تعمل بانتظام';
                 btn.innerText = 'إيقاف المراقبة';
                 btn.style.background = '#ef4444';
-                logMessage("بدء فحص الأسواق بفاصل زمني آمن...");
-                fetchMarketData();
-                monitoringInterval = setInterval(fetchMarketData, 35000); 
+                logMessage("بدء فحص الأسواق بنظام الجلب التتابعي الآمن...");
+                fetchAllStocksSequential();
+                monitoringInterval = setInterval(fetchAllStocksSequential, 30000); 
             } else {
                 badge.classList.remove('active');
                 badge.innerText = 'المراقبة: متوقفة';
@@ -226,7 +226,7 @@
             }
         }
 
-        async function fetchWithMultiProxy(targetUrl) {
+        async function fetchWithProxy(targetUrl) {
             const proxies = [
                 `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
                 `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
@@ -236,22 +236,24 @@
                 try {
                     const response = await fetch(proxyUrl);
                     if (response.ok) {
-                        const data = await response.json();
-                        return data;
+                        return await response.json();
                     }
                 } catch (e) {}
             }
-            throw new Error("تخطي مؤقت لضغط الطلبات");
+            throw new Error("فشل الاتصال");
         }
 
-        async function fetchMarketData() {
+        // جلب الأسهم واحداً تلو الآخر بفاصل زمني نظيف لمنع الحظر
+        async function fetchAllStocksSequential() {
             const key = document.getElementById('apiKeyInput').value.trim();
-            if (!key) return;
+            if (!key || !isRunning) return;
 
             for (let symbol of symbols) {
+                if (!isRunning) break;
                 try {
+                    document.getElementById(`status_${symbol}`).innerText = `جاري التحديث...`;
                     const targetUrl = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${key}`;
-                    const data = await fetchWithMultiProxy(targetUrl);
+                    const data = await fetchWithProxy(targetUrl);
 
                     if (data && data.c !== undefined && data.c !== 0) {
                         const price = data.c;
@@ -263,14 +265,13 @@
                         statusElem.innerText = `تغير: ${change >= 0 ? '+' : ''}${change}%`;
                         statusElem.style.color = change >= 0 ? '#22c55e' : '#ef4444';
                     } else {
-                        document.getElementById(`status_${symbol}`).innerText = `إعادة محاولة`;
+                        document.getElementById(`status_${symbol}`).innerText = `انتظار السوق`;
                     }
-                    
-                    // رفع الفاصل الزمني إلى 3 ثوانٍ كاملة بين كل سهم لتجنب أي حظر من Finnhub
-                    await new Promise(r => setTimeout(r, 3000));
                 } catch (error) {
-                    document.getElementById(`status_${symbol}`).innerText = `جاري التحديث`;
+                    document.getElementById(`status_${symbol}`).innerText = `إعادة محاولة`;
                 }
+                // انتظار 4 ثوانٍ كاملة بين كل سهم لتجنب أي ضغط على الخادم
+                await new Promise(r => setTimeout(r, 4000));
             }
         }
     </script>
